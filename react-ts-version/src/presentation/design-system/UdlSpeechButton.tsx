@@ -19,6 +19,9 @@ interface UdlSpeechButtonProps {
  */
 export const NarrationContext = createContext(true);
 
+/** How long a second press waits for the voice to start before it may stop the read. */
+const STARTUP_GRACE_MS = 4000;
+
 export function UdlSpeechButton(props: UdlSpeechButtonProps) {
   return useContext(NarrationContext) ? <SpeechButton {...props} /> : null;
 }
@@ -34,8 +37,18 @@ function SpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }:
     onPlayingChangeRef.current?.(playing);
   };
 
+  /** When this button's read was pressed, and whether its voice has been heard yet. */
+  const pressedAtRef = useRef(0);
+  const startedRef = useRef(false);
+
   const handleSpeak = () => {
     if (isPlaying) {
+      // The engine can take a second or more before the first word (2.7s measured on
+      // a cold Windows engine). A child who hears nothing presses again, and that
+      // press used to stop the read before it was ever heard. Until the voice starts,
+      // a second press leaves the read alone; the ceiling keeps an engine that never
+      // reports its start from locking the button.
+      if (!startedRef.current && Date.now() - pressedAtRef.current < STARTUP_GRACE_MS) return;
       tts.stop();
       handleRef.current = 0;
       setIsPlaying(false);
@@ -43,11 +56,16 @@ function SpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }:
     }
 
     setIsPlaying(true);
+    pressedAtRef.current = Date.now();
+    startedRef.current = false;
     handleRef.current = tts.speak(
       text,
       lang,
       () => setIsPlaying(false),
-      () => setIsPlaying(false)
+      () => setIsPlaying(false),
+      () => {
+        startedRef.current = true;
+      }
     );
   };
 

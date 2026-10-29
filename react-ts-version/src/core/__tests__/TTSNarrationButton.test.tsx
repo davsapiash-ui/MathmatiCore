@@ -26,6 +26,7 @@ class FakeUtterance {
   voice: FakeVoice | null = null;
   onend: (() => void) | null = null;
   onerror: ((e: unknown) => void) | null = null;
+  onstart: (() => void) | null = null;
   constructor(text: string) {
     this.text = text;
   }
@@ -71,6 +72,10 @@ class FakeSynth {
     this.queue = [];
     queued[queued.length - 1]?.onend?.();
   }
+  /** The voice is heard: the engine reports the start of the first utterance. */
+  startFirst() {
+    this.queue[0]?.onstart?.();
+  }
   failAll() {
     const queued = this.queue;
     this.queue = [];
@@ -79,6 +84,9 @@ class FakeSynth {
 }
 
 let synth: FakeSynth;
+
+/** What was really read: the audio gate's silent utterance (volume 0) is not a read. */
+const reads = () => synth.all.filter((u) => u.volume > 0);
 
 async function loadButton() {
   synth = new FakeSynth(HEBREW_VOICES);
@@ -140,7 +148,7 @@ describe('כפתור ההקראה — מהלחיצה ועד המנוע', () => {
     act(() => synth.finishAll());
     fireEvent.click(button);
 
-    expect(synth.all).toHaveLength(2);
+    expect(reads()).toHaveLength(2);
   });
 
   it('לחיצה שנייה בזמן הקראה עוצרת אותה', async () => {
@@ -149,11 +157,45 @@ describe('כפתור ההקראה — מהלחיצה ועד המנוע', () => {
     const button = getByRole('button');
 
     fireEvent.click(button);
+    act(() => synth.startFirst());
+    const cancelsBefore = synth.cancels;
     fireEvent.click(button);
 
-    expect(synth.cancels).toBe(1);
+    expect(synth.cancels).toBe(cancelsBefore + 1);
     expect(synth.queue).toHaveLength(0);
     expect(button.className).not.toContain('animate-pulse');
+  });
+
+  it('לחיצה שנייה לפני שהקול התחיל אינה עוצרת את ההקראה — המנוע איטי לפעמים בשניות', async () => {
+    // A cold Windows engine was measured taking 2.7s before the first word (29.10.2026).
+    // A child who hears nothing presses again; that press used to stop the read unheard.
+    const UdlSpeechButton = await loadButton();
+    const { getByRole } = render(<UdlSpeechButton text={INSTRUCTION} />);
+    const button = getByRole('button');
+
+    fireEvent.click(button);
+    const cancelsBefore = synth.cancels;
+    fireEvent.click(button);
+
+    expect(synth.cancels).toBe(cancelsBefore);
+    expect(synth.queue.map((u) => u.text)).toEqual([INSTRUCTION]);
+    expect(button.className).toContain('animate-pulse');
+  });
+
+  it('מנוע שאינו מדווח על תחילת הקראה אינו נועל את הכפתור: אחרי ההמתנה לחיצה עוצרת', async () => {
+    const UdlSpeechButton = await loadButton();
+    const { getByRole } = render(<UdlSpeechButton text={INSTRUCTION} />);
+    const button = getByRole('button');
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000_000);
+
+    fireEvent.click(button);
+    now.mockReturnValue(1_000_000 + 5_000);
+    fireEvent.click(button);
+
+    expect(synth.queue).toHaveLength(0);
+    expect(button.className).not.toContain('animate-pulse');
+    now.mockRestore();
   });
 
   it('כפתור שיורד מהמסך אינו משתיק כפתור אחר שמקריא', async () => {
@@ -168,10 +210,11 @@ describe('כפתור ההקראה — מהלחיצה ועד המנוע', () => {
     const { container, rerender } = render(<Pair showFirst />);
     fireEvent.click(container.querySelector('.second-button')!);
     expect(synth.queue).toHaveLength(1);
+    const cancelsBefore = synth.cancels;
 
     rerender(<Pair showFirst={false} />); // המסך התחלף והכפתור הראשון ירד
 
-    expect(synth.cancels).toBe(0);
+    expect(synth.cancels).toBe(cancelsBefore);
     expect(synth.queue).toHaveLength(1);
     expect(synth.queue[0].text).toBe('הנחיה שנייה.');
   });

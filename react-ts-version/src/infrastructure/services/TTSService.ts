@@ -47,6 +47,8 @@ export class TTSService {
   private activeUtterances: SpeechSynthesisUtterance[] = [];
   private watchdogTimer: ReturnType<typeof setInterval> | null = null;
   private startTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Tells the current read's caller it is over; see cancelCurrent. */
+  private releaseCurrent: (() => void) | null = null;
   /** Identifies the newest request, so a stale callback cannot clear newer state. */
   private currentToken = 0;
   private voiceWaiters: Array<() => void> = [];
@@ -120,15 +122,21 @@ export class TTSService {
     this.gateArmed = true;
 
     const unlock = () => {
-      window.removeEventListener('pointerdown', unlock, true);
-      window.removeEventListener('keydown', unlock, true);
+      for (const type of TTSService.GATE_EVENTS) window.removeEventListener(type, unlock, true);
       this.initializeAudioGate();
     };
     // Capture phase: the gate has to run even when the child's first touch lands on a
     // control that stops the event from propagating.
-    window.addEventListener('pointerdown', unlock, true);
-    window.addEventListener('keydown', unlock, true);
+    for (const type of TTSService.GATE_EVENTS) window.addEventListener(type, unlock, true);
   }
+
+  /**
+   * Only events the browser counts as user activation may unlock speech. pointerdown
+   * from a finger is not one of them (HTML spec: pointerdown counts for a mouse only),
+   * so on a tablet the gate used to fire without unlocking anything and then never
+   * fire again. mousedown, touchend, click and keydown all count.
+   */
+  private static readonly GATE_EVENTS = ['mousedown', 'touchend', 'click', 'keydown'] as const;
 
   public isAudioUnlocked(): boolean {
     return this.audioUnlocked;
@@ -209,16 +217,13 @@ export class TTSService {
     const langVoices = this.voicesFor(lang);
     if (langVoices.length === 0) return undefined;
 
-    // Offline the network voices are mute, and on ChromeOS and Android every Hebrew
-    // voice Google ships is network-only — which matters here, because this app is
-    // built to keep working when the classroom connection drops.
-    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    const candidates = offline
-      ? (() => {
-          const local = langVoices.filter((v) => v.localService);
-          return local.length > 0 ? local : langVoices;
-        })()
-      : langVoices;
+    // A voice installed on the device wins over a network voice, online or not. A
+    // network voice is mute offline, and online it still depends on a speech server a
+    // school filter may block while navigator.onLine stays true — and it starts later.
+    // On ChromeOS and Android every Hebrew voice Google ships is network-only, so there
+    // the network voice is still what is left.
+    const local = langVoices.filter((v) => v.localService);
+    const candidates = local.length > 0 ? local : langVoices;
 
     // Prefer high quality, natural, or dedicated Hebrew voices.
     return (
@@ -338,12 +343,15 @@ export class TTSService {
 
   /**
    * Reads the text aloud. Returns a handle identifying this read, for stopIfCurrent.
+   * onStart fires when the voice is actually heard, which can be a second or more after
+   * the press on a cold engine (measured 2.7s on Windows, Microsoft Asaf).
    */
   public speak(
     text: string,
     lang: string = 'he-IL',
     onEnd?: () => void,
-    onError?: (e: Event) => void
+    onError?: (e: Event) => void,
+    onStart?: () => void
   ): number {
     if (!this.isSupported()) {
       if (onError) onError(new Event('TTSNotSupported'));
@@ -359,9 +367,24 @@ export class TTSService {
     const token = ++this.currentToken;
     this.cancelCurrent();
 
+    // The caller hears exactly one ending, whichever comes first: the engine's own
+    // event, the watchdog, or a newer read taking over.
+    let done = false;
+    const end = () => {
+      if (done) return;
+      done = true;
+      if (onEnd) onEnd();
+    };
+    const fail = (e: Event) => {
+      if (done) return;
+      done = true;
+      if (onError) onError(e);
+    };
+    this.releaseCurrent = end;
+
     const begin = () =>
       this.whenQueueDrained(token, () =>
-        this.speakChunks(token, this.chunkText(cleanText), lang, onEnd, onError)
+        this.speakChunks(token, this.chunkText(cleanText), lang, end, fail, onStart)
       );
 
     // Stay synchronous inside the click handler whenever the voice list is ready; only
@@ -401,7 +424,8 @@ export class TTSService {
     chunks: string[],
     lang: string,
     onEnd?: () => void,
-    onError?: (e: Event) => void
+    onError?: (e: Event) => void,
+    onStart?: () => void
   ) {
     if (token !== this.currentToken) return;
     if (chunks.length === 0) {
@@ -453,6 +477,7 @@ export class TTSService {
       return utterance;
     });
     utterances[utterances.length - 1].onend = () => settle(() => onEnd && onEnd());
+    if (onStart) utterances[0].onstart = () => onStart();
 
     // Hold the references: an utterance only the engine knows about is collected
     // mid-read, and its onend never arrives (F4).
@@ -500,6 +525,13 @@ export class TTSService {
 
   private cancelCurrent() {
     if (!this.isSupported()) return;
+    // The read being replaced is told it is over now, not when the engine gets round
+    // to it: some engines fire neither onend nor onerror on cancel(), and a read still
+    // waiting for the voice list or the drain has no utterance to fire anything. Its
+    // button then stayed "playing", and its next press only stopped the other read.
+    const release = this.releaseCurrent;
+    this.releaseCurrent = null;
+    if (release) release();
     this.stopWatchdog();
     this.activeUtterances = [];
     if (this.startTimer !== null) {
