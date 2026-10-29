@@ -1,4 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Rubik:wght@300;400;500;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+/* The fonts ship with the site instead of coming from Google Fonts: a school
+   network that blocked or slowed fonts.googleapis.com showed the computer's own
+   font, so words and buttons had a different width on every computer. Each file
+   loads only for the letters on the page (unicode-range: Hebrew, Latin). */
+@import "@fontsource/assistant/300.css";
+@import "@fontsource/assistant/400.css";
+@import "@fontsource/assistant/600.css";
+@import "@fontsource/assistant/700.css";
+@import "@fontsource/assistant/800.css";
+@import "@fontsource/rubik/300.css";
+@import "@fontsource/rubik/400.css";
+@import "@fontsource/rubik/500.css";
+@import "@fontsource/rubik/600.css";
+@import "@fontsource/rubik/700.css";
+@import "@fontsource/rubik/800.css";
+@import "@fontsource/rubik/900.css";
+@import "@fontsource/heebo/300.css";
+@import "@fontsource/heebo/400.css";
+@import "@fontsource/heebo/500.css";
+@import "@fontsource/heebo/600.css";
+@import "@fontsource/heebo/700.css";
+@import "@fontsource/heebo/800.css";
+@import "@fontsource/heebo/900.css";
 
 @import "tailwindcss/base";
 @import "tailwindcss/components";
