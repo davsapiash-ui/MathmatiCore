@@ -52,9 +52,10 @@ exactly two ways:
    Doc and replaces this file with it, as a whole, without "improving" anything.
 2. **The owner decides something in chat** and tells the agent, explicitly, to write it
    into the PRD. The agent then edits this file **and** records the same edit as ops in
-   `tools/prd-sync/ops/` (see `tools/prd-sync/README.md`), so the owner can apply it to
-   the Google Doc paragraph by paragraph without losing the Doc's formatting or their
-   own later edits. The pull request gets the label `owner-approved-spec-change`.
+   `tools/prd-sync/ops/` (see `tools/prd-sync/README.md`), adds a row to
+   `tools/prd-sync/PENDING.md` and rebuilds `apply_pending.gs`, so the owner can apply
+   every pending edit to the Google Doc with one script, paragraph by paragraph, without
+   losing the Doc's formatting or their own later edits. The pull request gets the label `owner-approved-spec-change`.
 
 Anything else — a decision you think the owner made, a gap you noticed, a mismatch you
 would like to resolve — you raise with the owner and stop. You do not write it anywhere.
