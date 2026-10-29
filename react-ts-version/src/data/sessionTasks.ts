@@ -296,10 +296,13 @@ export const SESSION1_TASKS: SessionTask[] = [
   // order on it, so nobody skips or repeats an exercise.
   // ★ chosen (owner, 24.9.2026). Mirrors task 5, where 25 unit cubes are on the
   // screen and the learner finds how many tens and units they make: here 26
-  // unit cubes wait on the board, and are grouped twice into tens.
+  // unit cubes wait on the board, and are grouped twice into tens. Steps 1–2
+  // (owner, 29.10.2026): step 1 says to press again until fewer than 10 unit
+  // blocks are left, and step 2 asks for the board as it is now — after one
+  // grouping there are 1 ten and 16 units, which the result row cannot hold.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש לבני יחידה.\nקבצו כל 10 לבני יחידה ללבנת עשרת אחת. לחצו על הכפתור "קבצו 10" שבראש הטור.\nכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש לבני יחידה.\nקבצו 10 לבני יחידה ללבנת עשרת אחת. לחצו על הכפתור "קבצו 10" שבראש הטור. לחצו שוב עד שבטור היחידות יישארו פחות מ-10 לבני יחידה.\nכתבו בשורת התוצאה כמה עשרות וכמה יחידות יש עכשיו בבית המספרים.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
 
   // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
