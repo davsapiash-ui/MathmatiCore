@@ -5,6 +5,7 @@ The owner's copy of the PRD is a Google Doc; the repo holds a Markdown mirror
 
 - **Owner edited the Doc:** export it and replace the repo file.
 - **A change was decided in chat:** edit the repo file, and give the owner a script of exact sentence replacements (old → new) that only replaces text occurring exactly once; it never inserts, deletes or moves a paragraph, table or code block. Or give the owner the edits to make by hand.
+- **Pending changes:** every edit not yet in the Doc is a row in `PENDING.md` with its ops file. `node tools/prd-sync/build_pending.cjs` bundles them all into `apply_pending.gs`, the one script the owner runs (`checkAll`, then `runAll`).
 
 Never write a script that restructures the Doc. The earlier paragraph-diff sync
 did, and on 8 October 2026 it moved the Doc's body into its footer; the owner had
