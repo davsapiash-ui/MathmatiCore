@@ -20,6 +20,8 @@
 
 import { speakMissingDigits } from '@/core/missingDigitSpeech';
 import { speakBlockCounts } from '@/core/blockCountSpeech';
+import { DEFAULT_TEACHER_GENDER, type TeacherGender } from '@/core/teacherGender';
+import { narrationAudio } from './NarrationAudio';
 
 export class TTSService {
   private static instance: TTSService;
@@ -351,8 +353,14 @@ export class TTSService {
     lang: string = 'he-IL',
     onEnd?: () => void,
     onError?: (e: Event) => void,
-    onStart?: () => void
+    onStart?: () => void,
+    teacherGender: TeacherGender = DEFAULT_TEACHER_GENDER
   ): number {
+    // Recorded first (NarrationAudio.ts, PRD Module 7, owner 29.10.2026): when every
+    // sentence of the text has a recording, the device voice is not used at all.
+    const plan = lang.startsWith('he') && narrationAudio.isSupported() ? narrationAudio.plan(text, teacherGender) : null;
+    if (plan) return this.speakRecorded(plan, lang, onEnd, onError, onStart);
+
     if (!this.isSupported()) {
       if (onError) onError(new Event('TTSNotSupported'));
       return 0;
@@ -397,6 +405,54 @@ export class TTSService {
       });
     }
 
+    return token;
+  }
+
+  /** Fetches the list of recordings ahead of the first press (NarrationAudio.preload). */
+  public preloadRecordings(): void {
+    void narrationAudio.preload();
+  }
+
+  private speakRecorded(
+    plan: { files: string[]; segments: string[] },
+    lang: string,
+    onEnd?: () => void,
+    onError?: (e: Event) => void,
+    onStart?: () => void
+  ): number {
+    const token = ++this.currentToken;
+    this.cancelCurrent();
+    let done = false;
+    const end = () => {
+      if (done) return;
+      done = true;
+      if (onEnd) onEnd();
+    };
+    const fail = (e: Event) => {
+      if (done) return;
+      done = true;
+      if (onError) onError(e);
+    };
+    this.releaseCurrent = end;
+    narrationAudio.play(plan, {
+      onStart,
+      onEnd: end,
+      // A recording that does not load (offline, a missing file) must not leave the
+      // child with silence: the sentences not yet heard go to the device voice.
+      onFail: (rest) => {
+        if (token !== this.currentToken) return;
+        if (!this.isSupported()) {
+          fail(new Event('NarrationAudioFailed'));
+          return;
+        }
+        const clean = this.cleanTextForSpeech(rest);
+        if (!clean) {
+          end();
+          return;
+        }
+        this.whenQueueDrained(token, () => this.speakChunks(token, this.chunkText(clean), lang, end, fail, onStart));
+      },
+    });
     return token;
   }
 
@@ -524,7 +580,13 @@ export class TTSService {
   }
 
   private cancelCurrent() {
-    if (!this.isSupported()) return;
+    narrationAudio.stop();
+    if (!this.isSupported()) {
+      const release = this.releaseCurrent;
+      this.releaseCurrent = null;
+      if (release) release();
+      return;
+    }
     // The read being replaced is told it is over now, not when the engine gets round
     // to it: some engines fire neither onend nor onerror on cancel(), and a read still
     // waiting for the voice list or the drain has no utterance to fire anything. Its
@@ -546,7 +608,6 @@ export class TTSService {
   }
 
   public stop() {
-    if (!this.isSupported()) return;
     this.currentToken += 1; // invalidates anything queued or waiting to start
     this.cancelCurrent();
   }

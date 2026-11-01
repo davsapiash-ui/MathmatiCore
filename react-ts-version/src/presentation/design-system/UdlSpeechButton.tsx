@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { UdlButton } from './UdlButton';
 import { tts } from '@/infrastructure/services/TTSService';
+import { useTeacherGenderStore } from '@/application/useTeacherGender';
 
 interface UdlSpeechButtonProps {
   text: string;
@@ -65,7 +66,9 @@ function SpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }:
       () => setIsPlaying(false),
       () => {
         startedRef.current = true;
-      }
+      },
+      // A sentence about the teacher is recorded as מוֹרָה and as מוֹרֶה; the teacher's choice picks one.
+      useTeacherGenderStore.getState().gender
     );
   };
 
@@ -73,6 +76,7 @@ function SpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }:
     // Scoped to the student surfaces by construction: this button exists nowhere else.
     // Covers the child who reloads mid-lesson and never passes the login gate again.
     tts.armAudioGate();
+    tts.preloadRecordings();
     return () => {
       // Only our own read: tts is a singleton shared by every speech button, so an
       // unconditional stop() here cuts off whichever button is actually speaking —

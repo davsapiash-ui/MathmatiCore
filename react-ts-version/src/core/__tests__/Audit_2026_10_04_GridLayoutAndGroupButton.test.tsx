@@ -6,7 +6,7 @@ import { DndContext } from '@dnd-kit/core';
 
 const speak = vi.hoisted(() => vi.fn((_text: string, _lang: string, _onEnd: () => void) => 1));
 vi.mock('@/infrastructure/services/TTSService', () => ({
-  tts: { speak, stop: () => {}, stopIfCurrent: () => {}, armAudioGate: () => {} },
+  tts: { speak, stop: () => {}, stopIfCurrent: () => {}, armAudioGate: () => {}, preloadRecordings: () => {} },
 }));
 
 import {

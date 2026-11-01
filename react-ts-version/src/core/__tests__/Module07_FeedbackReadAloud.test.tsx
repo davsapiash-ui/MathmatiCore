@@ -12,6 +12,7 @@ vi.mock('@/infrastructure/services/TTSService', () => ({
     stop: () => {},
     stopIfCurrent: () => {},
     armAudioGate: () => {},
+    preloadRecordings: () => {},
   },
 }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
