@@ -211,9 +211,14 @@ These are not style preferences. Breaking one is a defect.
    - `useAdminStore.ts` — schools, classes, teachers
 5. **No audio or video capture, ever.** Screen and DOM capture only. No camera, no
    microphone, no speech input anywhere in the system (Modules 21, 22).
-6. **Narration (TTS) is student-side only.** Client-side Web Speech API in Hebrew,
-   triggered strictly by an explicit student click. Autoplay narration is forbidden.
-   The teacher and admin interfaces have no narration at all (Module 24 / UDL).
+6. **Narration (TTS) is student-side only.** Hebrew recordings made ahead of time,
+   one per sentence, from pointed text (the screen stays unpointed), in both of the
+   teacher's genders where a sentence names the teacher; a text with any sentence that
+   has no recording is read by the device's Web Speech voice (Module 7, owner,
+   29.10.2026). Triggered strictly by an explicit student click. Autoplay narration is
+   forbidden. The teacher and admin interfaces have no narration at all (Module 24 / UDL).
+   A child text changed in code needs its recording made again (`tools/narration`);
+   `NarrationCoverage.test.ts` fails until it is.
 
 ## Quality gate
 
