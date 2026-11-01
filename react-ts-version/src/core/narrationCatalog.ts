@@ -18,7 +18,7 @@ import { TASK_LABEL_HE } from '@/core/taskPositionLabel';
 import { TEACHER_SENTENCES_HE } from '@/core/teacherGender';
 import { stationOpeningHe } from '@/core/stationOpening';
 import { ENCOURAGEMENT_SENTENCES_HE } from '@/core/persistenceEncouragement';
-import { LOBBY_FINISHED_LAST_STATION_HE } from '@/core/lobbyState';
+import { LOBBY_FINISHED_LAST_STATION_HE, lobbySentenceHe } from '@/core/lobbyState';
 import { proceedSentenceHe } from '@/core/toolbarNames';
 import { BOARD_STAYS_OPEN_HE } from '@/core/boardVisibility';
 import { narrationSegments } from './narrationSegments';
@@ -90,6 +90,13 @@ export function narrationCatalog(): CatalogSentence[] {
   for (let meeting = 1; meeting <= 8; meeting++) addText(out, stationOpeningHe(meeting), `פתיחת תחנה ${meeting}`);
   for (const sentence of Object.values(ENCOURAGEMENT_SENTENCES_HE)) addText(out, sentence, 'משפט עידוד');
   addText(out, LOBBY_FINISHED_LAST_STATION_HE, 'לובי');
+  // The later-login lobby sentences carry a station number (core/lobbyState.ts).
+  for (let station = 1; station <= 8; station++) {
+    for (const g of ['female', 'male'] as const) {
+      addText(out, lobbySentenceHe('lobbyClosedUnfinishedLater', g, station), 'לובי, כניסה מאוחרת');
+      if (station >= 2) addText(out, lobbySentenceHe('lobbyFinishedLater', g, station), 'לובי, כניסה מאוחרת');
+    }
+  }
   addText(out, proceedSentenceHe(), 'תיבת סיום');
   addText(out, BOARD_STAYS_OPEN_HE, 'סרגל עליון');
   addText(out, 'כתבו את קוד הגישה שקיבלתם מהמורה.', 'מסך הכניסה');

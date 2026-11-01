@@ -189,3 +189,16 @@ export function lastMeetingOf(raw: ActiveClassSessionRecord | null | undefined):
   const n = Number(raw?.sessionNumber);
   return raw?.sessionNumber != null && Number.isInteger(n) && n >= 1 && n <= 8 ? n : null;
 }
+
+/**
+ * When the meeting that is no longer live stopped running (server time): the close's
+ * endedAt, or, for a run that simply ran past its 45 minutes with no close written,
+ * its start plus the cap. Null when neither is known. The lobby uses it to tell the
+ * lesson in which a station closed from a later login (core/lobbyState.ts).
+ */
+export function lastEndedAtOf(raw: ActiveClassSessionRecord | null | undefined): number | null {
+  if (!raw) return null;
+  if (typeof raw.endedAt === 'number' && Number.isFinite(raw.endedAt) && raw.endedAt > 0) return raw.endedAt;
+  const started = readSessionStartedAt(raw);
+  return started !== null ? started + SESSION_HARD_CAP_MS : null;
+}

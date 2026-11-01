@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { database, serverNow } from '@/infrastructure/firebase';
 import { acknowledgeTeacherReset, firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
@@ -183,6 +183,9 @@ export function StudentHub() {
     status: activeClassSession.status,
     sessionNumber: teacherSessionNum,
     lastMeeting: activeClassSession.lastMeeting ?? null,
+    // A login more than an hour after the station stopped gets the later-login sentence (owner, 1.11.2026).
+    lastEndedAt: activeClassSession.lastEndedAt ?? null,
+    now: serverNow(),
     record,
     // This device's own copy of the meeting, as the workspace reads it on entry.
     deviceCopyOf: (m) => (normUid || uid ? firebaseSyncService.getLocalSessionProgress(normUid || uid, m) : null),
@@ -212,7 +215,7 @@ export function StudentHub() {
 
   // Until the broadcast is read, and for the moment of the swap: the same quiet
   // page with nothing on it yet — never a sentence that is not true.
-  const sentence = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'waiting' ? lobbySentenceHe(state.sentence, teacherGender) : null;
+  const sentence = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'waiting' ? lobbySentenceHe(state.sentence, teacherGender, state.station) : null;
 
   return (
     <div

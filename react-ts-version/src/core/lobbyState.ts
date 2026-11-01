@@ -1,5 +1,5 @@
 import { isMeetingFinished, hasStartedMeeting, resumeSnapshotFor } from '@/core/meetingCompletion';
-export { lastMeetingOf } from '@/core/classSession';
+export { lastMeetingOf, lastEndedAtOf } from '@/core/classSession';
 import { teacherSentenceHe, type TeacherGender, type TeacherSentenceKey } from '@/core/teacherGender';
 
 /**
@@ -22,21 +22,32 @@ import { teacherSentenceHe, type TeacherGender, type TeacherSentenceKey } from '
  * A closed station the learner never started is, for them, not opened yet.
  */
 export type LobbyWaitingSentence =
-  | Extract<TeacherSentenceKey, 'lobbyNotStarted' | 'lobbyPaused' | 'lobbyFinished' | 'lobbyClosedUnfinished'>
+  | Extract<TeacherSentenceKey, 'lobbyNotStarted' | 'lobbyPaused' | 'lobbyFinished' | 'lobbyClosedUnfinished' | 'lobbyFinishedLater' | 'lobbyClosedUnfinishedLater'>
   | 'lobbyFinishedLastStation';
+
+/**
+ * A later login (owner, 1.11.2026): "העבודה שלכם נשמרה בבטחה" announces what just
+ * happened, and it is wrong on a login after that lesson. More than an hour after the
+ * station stopped running, the learner is told what comes next instead:
+ *   closed, the learner unfinished → "שלום, עצרתם את העבודה בתחנה N. אם קבעתם עם המורה, …"
+ *   the learner finished station N → "אתם עומדים להתחיל את תחנה N+1. בעוד מספר רגעים המורה תפתח …"
+ * Station 8 has no later login: it is the last one.
+ */
+export const LOBBY_LATER_AFTER_MS = 60 * 60 * 1000;
 
 /** PRD 14 §ב0 / Module 6: after station 8, which has no next station. No gendered verb, so one form. */
 export const LOBBY_FINISHED_LAST_STATION_HE = 'סיימתם את תחנה 8, התחנה האחרונה. העבודה שלכם נשמרה בבטחה.';
 
-/** The lobby sentence in the teacher's gender. */
-export function lobbySentenceHe(sentence: LobbyWaitingSentence, gender: TeacherGender): string {
-  return sentence === 'lobbyFinishedLastStation' ? LOBBY_FINISHED_LAST_STATION_HE : teacherSentenceHe(sentence, gender);
+/** The lobby sentence in the teacher's gender; `station` fills the later-login sentences. */
+export function lobbySentenceHe(sentence: LobbyWaitingSentence, gender: TeacherGender, station?: number): string {
+  if (sentence === 'lobbyFinishedLastStation') return LOBBY_FINISHED_LAST_STATION_HE;
+  return teacherSentenceHe(sentence, gender).replace('{{N}}', String(station ?? ''));
 }
 
 const finishedSentence = (meeting: number): LobbyWaitingSentence =>
   meeting === 8 ? 'lobbyFinishedLastStation' : 'lobbyFinished';
 
-export type LobbyState = { kind: 'opening'; meeting: number } | { kind: 'waiting'; sentence: LobbyWaitingSentence };
+export type LobbyState = { kind: 'opening'; meeting: number } | { kind: 'waiting'; sentence: LobbyWaitingSentence; station?: number };
 
 type LearnerRecord = Record<string, unknown> | null | undefined;
 
@@ -56,9 +67,12 @@ export interface LobbyInput {
    * (meetingEntry.planMeetingEntry; review RN1).
    */
   deviceCopyOf?: (meeting: number) => Record<string, unknown> | null | undefined;
+  /** When the last run stopped (classSession.lastEndedAtOf), and the time now; both server time. */
+  lastEndedAt?: number | null;
+  now?: number;
 }
 
-export function lobbyState({ live, status, sessionNumber, lastMeeting, record, deviceCopyOf }: LobbyInput): LobbyState {
+export function lobbyState({ live, status, sessionNumber, lastMeeting, record, deviceCopyOf, lastEndedAt, now }: LobbyInput): LobbyState {
   const atOptional = (meeting: number) => atOptionalExercises(record, meeting, deviceCopyOf?.(meeting));
   if (live && sessionNumber !== null) {
     if (status === 'paused') {
@@ -80,8 +94,13 @@ export function lobbyState({ live, status, sessionNumber, lastMeeting, record, d
   }
   const last = lastMeeting;
   if (last !== null) {
-    if (isMeetingFinished(record, last)) return { kind: 'waiting', sentence: finishedSentence(last) };
-    if (hasStartedMeeting(record, last)) return { kind: 'waiting', sentence: 'lobbyClosedUnfinished' };
+    const later = typeof lastEndedAt === 'number' && typeof now === 'number' && now - lastEndedAt > LOBBY_LATER_AFTER_MS;
+    if (isMeetingFinished(record, last)) {
+      return later && last < 8 ? { kind: 'waiting', sentence: 'lobbyFinishedLater', station: last + 1 } : { kind: 'waiting', sentence: finishedSentence(last) };
+    }
+    if (hasStartedMeeting(record, last)) {
+      return later ? { kind: 'waiting', sentence: 'lobbyClosedUnfinishedLater', station: last } : { kind: 'waiting', sentence: 'lobbyClosedUnfinished' };
+    }
   }
   return { kind: 'waiting', sentence: 'lobbyNotStarted' };
 }

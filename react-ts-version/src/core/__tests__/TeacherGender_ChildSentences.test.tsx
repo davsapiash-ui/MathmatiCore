@@ -164,7 +164,7 @@ describe('the children’s screens follow the teacher’s choice, on the screen 
     const hub = src('presentation/pages/StudentHub.tsx');
     expect(hub).toContain('const teacherGender = useTeacherGender();');
     // Every lobby sentence (core/lobbyState.ts) in the teacher's gender.
-    expect(hub).toContain('lobbySentenceHe(state.sentence, teacherGender)');
+    expect(hub).toContain('lobbySentenceHe(state.sentence, teacherGender, state.station)');
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('const teacherGender = useTeacherGender();');
     expect(page).toContain("teacherSentenceHe('nextStation', teacherGender)");
