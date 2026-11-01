@@ -81,6 +81,21 @@ export const TEACHER_SENTENCES_HE = {
     female: 'סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.',
     male: 'סיימתם את התחנה. כשהמורה יפתח את התחנה הבאה, נמשיך יחד.',
   },
+  /**
+   * The lobby on a later login (owner, 1.11.2026): a learner whose station closed
+   * before they finished it, more than an hour after the close. {{N}} is the station.
+   * It names the teacher without a gendered verb, so one text; the voice still says
+   * מוֹרָה or מוֹרֶה (core/narrationSegments.ts).
+   */
+  lobbyClosedUnfinishedLater: {
+    female: 'שלום, עצרתם את העבודה בתחנה {{N}}. אם קבעתם עם המורה, המתינו מספר רגעים, והעבודה תיפתח ותוכלו להמשיך. בהצלחה.',
+    male: 'שלום, עצרתם את העבודה בתחנה {{N}}. אם קבעתם עם המורה, המתינו מספר רגעים, והעבודה תיפתח ותוכלו להמשיך. בהצלחה.',
+  },
+  /** The lobby on a later login (owner, 1.11.2026): a learner who finished station N−1; {{N}} is the next station. */
+  lobbyFinishedLater: {
+    female: 'אתם עומדים להתחיל את תחנה {{N}}. בעוד מספר רגעים המורה תפתח את הפעילות הבאה. בהצלחה.',
+    male: 'אתם עומדים להתחיל את תחנה {{N}}. בעוד מספר רגעים המורה יפתח את הפעילות הבאה. בהצלחה.',
+  },
   /** The end-of-station screen's last line, under "העבודה שלכם נשמרה בבטחה." (PRD 14 §ג). */
   nextStation: {
     female: 'כשהמורה תפתח את התחנה הבאה, נמשיך יחד.',

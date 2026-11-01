@@ -86,6 +86,40 @@ describe('lobbyState', () => {
   it('closed, and this learner never started that station: for them nothing was opened yet', () => {
     expect(lobbyState({ ...closed, lastMeeting: 4, record: {} })).toEqual({ kind: 'waiting', sentence: 'lobbyNotStarted' });
   });
+
+  describe('a later login (owner, 1.11.2026): more than an hour after the station stopped, the learner hears what comes next', () => {
+    const endedAt = 1_000_000_000_000;
+    const sameLesson = { lastEndedAt: endedAt, now: endedAt + 30 * 60 * 1000 };
+    const later = { lastEndedAt: endedAt, now: endedAt + 61 * 60 * 1000 };
+
+    it('in the lesson of the close the sentences stay as they were', () => {
+      expect(lobbyState({ ...closed, lastMeeting: 4, record: started4, ...sameLesson })).toEqual({ kind: 'waiting', sentence: 'lobbyClosedUnfinished' });
+      expect(lobbyState({ ...closed, lastMeeting: 4, record: finished4, ...sameLesson })).toEqual({ kind: 'waiting', sentence: 'lobbyFinished' });
+    });
+
+    it('unfinished station 4, later: "שלום, עצרתם את העבודה בתחנה 4. …"', () => {
+      const state = lobbyState({ ...closed, lastMeeting: 4, record: started4, ...later });
+      expect(state).toEqual({ kind: 'waiting', sentence: 'lobbyClosedUnfinishedLater', station: 4 });
+      const s = state as { sentence: 'lobbyClosedUnfinishedLater'; station: number };
+      expect(lobbySentenceHe(s.sentence, 'female', s.station)).toBe('שלום, עצרתם את העבודה בתחנה 4. אם קבעתם עם המורה, המתינו מספר רגעים, והעבודה תיפתח ותוכלו להמשיך. בהצלחה.');
+    });
+
+    it('finished station 4, later: the next station, in the teacher\'s gender', () => {
+      const state = lobbyState({ ...closed, lastMeeting: 4, record: finished4, ...later });
+      expect(state).toEqual({ kind: 'waiting', sentence: 'lobbyFinishedLater', station: 5 });
+      const s = state as { sentence: 'lobbyFinishedLater'; station: number };
+      expect(lobbySentenceHe(s.sentence, 'female', s.station)).toBe('אתם עומדים להתחיל את תחנה 5. בעוד מספר רגעים המורה תפתח את הפעילות הבאה. בהצלחה.');
+      expect(lobbySentenceHe(s.sentence, 'male', s.station)).toBe('אתם עומדים להתחיל את תחנה 5. בעוד מספר רגעים המורה יפתח את הפעילות הבאה. בהצלחה.');
+    });
+
+    it('station 8 finished has no later sentence: it is the last station', () => {
+      expect(lobbyState({ live: false, status: 'closed', sessionNumber: null, lastMeeting: 8, record: { completedMeetings: { m8: 1 } }, ...later })).toEqual({ kind: 'waiting', sentence: 'lobbyFinishedLastStation' });
+    });
+
+    it('without a known end time nothing changes', () => {
+      expect(lobbyState({ ...closed, lastMeeting: 4, record: started4, lastEndedAt: null, now: later.now })).toEqual({ kind: 'waiting', sentence: 'lobbyClosedUnfinished' });
+    });
+  });
 });
 
 describe('lastMeetingOf: the station a session that is no longer live last ran', () => {
