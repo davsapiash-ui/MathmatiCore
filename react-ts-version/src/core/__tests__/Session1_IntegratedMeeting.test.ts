@@ -23,7 +23,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  */
 
 /** The repository copy of מסמך 03, synced from the owner's Drive document (30.9.2026). Markdown escapes are undone. */
-const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\([.!()])/g, '$1');
+const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/מתמטיקאור 2.0 - אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\([.!()])/g, '$1');
 /**
  * Owner, 1.10.2026 (D11c): on screen the button is "כפתור ביטול הפעולה"
  * (construct state, ה on the last noun). Since the docs round of 4.10.2026
@@ -36,7 +36,7 @@ const inDoc03 = (line: string, where: string) => expect(DOC03, where).toContain(
  * PRD, not מסמך 03, is the wording on screen (AGENTS.md Rule 1).
  */
 // The Drive's Markdown export escapes punctuation ("\\!", "\\.", "\\_"); the words on screen carry none.
-const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md'), 'utf-8').replace(/\\([_!+.()\[\]*#\-<>`=|~])/g, '$1');
+const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מתמטיקאור 2.0 - PRD.md'), 'utf-8').replace(/\\([_!+.()\[\]*#\-<>`=|~])/g, '$1');
 const PRD_STATION1 = PRD.slice(PRD.indexOf('### מבנה מפגש 1'), PRD.indexOf('### מפגש 2 (תחנה 2'));
 /** A numbered step is quoted in the PRD with its number ("1. בנו את המספר בבית המספרים."). */
 const inPrd = (line: string, where: string) =>

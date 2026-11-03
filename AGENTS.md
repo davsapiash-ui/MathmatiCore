@@ -28,7 +28,7 @@ has.
 The **only** authoritative requirements document is:
 
 ```
-מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md
+מסמכי אפיון/מתמטיקאור 2.0 - PRD.md
 ```
 
 Version 8.7, 12 October 2026 — 29 modules plus 23א, Appendix A and Appendix B. Read it
@@ -45,7 +45,10 @@ work for the code, not a reason to doubt the PRD.
 a module, not to add an implementation note. Between 30 August and 9 September 2026
 agents wrote seven rounds of decisions into it on their own initiative, and on 14
 September the owner had the file restored. The owner's copy of the PRD is the Google
-Doc of the same name in their Drive; the file here mirrors it. The PRD changes in
+Doc of the same name in their Drive; the file here mirrors it. Since 3 November 2026
+every owner document lives in the Drive folder "מתמטיקאור סמסטר ב", and each file
+under `מסמכי אפיון/` carries the title of its Doc there (`|` becomes `-`, which
+Windows cannot store). The earlier Drive copies are frozen. The PRD changes in
 exactly two ways:
 
 1. **The owner edits the Google Doc** and asks an agent to sync it. The agent exports the
@@ -86,17 +89,21 @@ CI (`protect-spec.yml`) fails a pull request that writes the first two back into
 
 ```
 מסמכי אפיון/מקור פדגוגי/
-  01- האפיון הראשוני.md
-  02- אפיון רצף הפעילויות.md
-  03- אפיון מפורט לקראת פיתוח.md
-  04- ארכיטקטורת מידע ועיצוב ממשק משתמש.md
-  05- המטריקס מעודכן ומאושר.docx
+  01 מתמטיקאור - אפיון ראשוני משודרג 2.0.md
+  מתמטיקאור 2.0 - אפיון רצף פעילות.md
+  מתמטיקאור 2.0 - אפיון מפורט לקראת פיתוח.md
+  מתמטיקאור - ארכיטקטורת מידע ועיצוב ממשק משתמש 2.0.md
+  מתמטיקאור 2.0 - מסמך מטריקס.docx
+  מתמטיקאור 2.0 - סקירת ספרות מורחבת.md
+  דוד ספיאשוילי- התשובות על שאלות התכנון.md
 ```
 
-These five are the product owner's pedagogical specification, written for their
+The first five (documents 01–05) are the product owner's pedagogical specification, written for their
 academic supervisor. The PRD was derived from them. They are here so an agent can
 **read** them — to understand why a requirement exists, or to check an exercise's
-numbers (module 26 of the PRD takes its exercise banks from document 03).
+numbers (module 26 of the PRD takes its exercise banks from document 03). The last two
+are the owner's course documents for semester B: the literature review and their
+answers to the research-planning questions. They are context, not requirements.
 
 **Agents never edit, rename, move, delete, convert or "update" these files, and never
 derive a new document from them.** They are not a second specification: where they and

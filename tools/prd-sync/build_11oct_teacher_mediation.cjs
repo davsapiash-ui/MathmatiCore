@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const PRD_MD = 'מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md';
+const PRD_MD = 'מסמכי אפיון/מתמטיקאור 2.0 - PRD.md';
 // Plain text as it is in the Google Doc; mdOld / mdNew only where the Markdown export escapes underscores.
 const md = (s) => s.replace(/_/g, '\\_');
 

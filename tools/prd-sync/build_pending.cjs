@@ -16,7 +16,7 @@ const path = require('path');
 
 const DIR = __dirname;
 const ROOT = path.join(DIR, '..', '..');
-const PRD = path.join(ROOT, 'מסמכי אפיון', '07- 3.MathematiCore_PRD_v07 הסופי.md');
+const PRD = path.join(ROOT, 'מסמכי אפיון', 'מתמטיקאור 2.0 - PRD.md');
 
 // The owner's semester-B Drive folder "מתמטיקאור סמסטר ב" (3.11.2026). The
 // earlier copies of these Docs are frozen; never point a script at them again.
