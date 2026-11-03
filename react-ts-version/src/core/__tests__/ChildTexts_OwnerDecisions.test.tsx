@@ -21,7 +21,7 @@ import {
   hasOpeningScreen,
   stationOpeningHe,
 } from '@/core/stationOpening';
-const PRD_FILE = resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md');
+const PRD_FILE = resolve(__dirname, '../../../../מסמכי אפיון/מתמטיקאור 2.0 - PRD.md');
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';

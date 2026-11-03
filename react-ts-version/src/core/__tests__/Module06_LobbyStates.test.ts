@@ -11,7 +11,7 @@ import { TEACHER_SENTENCES_HE } from '@/core/teacherGender';
  * the session's state and the learner's finished mark at that station, not the
  * reason the session closed.
  */
-const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md'), 'utf8');
+const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מתמטיקאור 2.0 - PRD.md'), 'utf8');
 
 const finished4 = { completedMeetings: { m4: 1_700_000_000_000 } };
 const started4 = { workspaceByMeeting: { m4: { sessionNumber: 4, flowStatus: 'task', hasInteracted: true, savedAt: 1 } } };

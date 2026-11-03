@@ -1,7 +1,7 @@
 # prd-sync — keeping the PRD in the repo and the Google Doc the same
 
 The owner's copy of the PRD is a Google Doc; the repo holds a Markdown mirror
-(`מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md`).
+(`מסמכי אפיון/מתמטיקאור 2.0 - PRD.md`).
 
 Since 3 November 2026 the owner's Docs live in the Drive folder "מתמטיקאור סמסטר ב"
 (the PRD there is "מתמטיקאור 2.0 | PRD"). The earlier copies are frozen: every script

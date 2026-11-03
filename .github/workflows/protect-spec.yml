@@ -26,7 +26,7 @@ jobs:
           # "typing a digit creates blocks" in August 2026 from document 03's "two-way sync".
           # Document 03 stays as the owner wrote it; the PRD must never carry the requirement.
           hits=$(grep -nE 'הקלדה המייצרת לבנים|הקלדת ספרה מייצרת|כיוון שני, הקלדה|סנכרון דו-כיווני|כפתור החזרה ללובי ממוקם|return-to-lobby button fixed' \
-            'מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md' || true)
+            'מסמכי אפיון/מתמטיקאור 2.0 - PRD.md' || true)
           if [ -n "$hits" ]; then
             echo "$hits"
             echo
@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           # -z: NUL-separated so Hebrew filenames come through intact.
           changed=$(git diff --name-only -z "$BASE" "$HEAD" | tr '\0' '\n' \
-            | grep -E '^מסמכי אפיון/(מקור פדגוגי/|07- [0-9]+\.MathematiCore_PRD_v07 הסופי\.md$)' || true)
+            | grep -E '^מסמכי אפיון/' || true)
           if [ -z "$changed" ]; then
             echo "Protected spec files untouched."
             exit 0
