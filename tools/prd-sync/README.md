@@ -3,6 +3,11 @@
 The owner's copy of the PRD is a Google Doc; the repo holds a Markdown mirror
 (`מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md`).
 
+Since 3 November 2026 the owner's Docs live in the Drive folder "מתמטיקאור סמסטר ב"
+(the PRD there is "מתמטיקאור 2.0 | PRD"). The earlier copies are frozen: every script
+targets the IDs in `build_pending.cjs`. The one-off `apply_*.gs` files from October
+are history and still name the old Docs; never re-run them.
+
 - **Owner edited the Doc:** export it and replace the repo file.
 - **A change was decided in chat:** edit the repo file, and give the owner a script of exact sentence replacements (old → new) that only replaces text occurring exactly once; it never inserts, deletes or moves a paragraph, table or code block. Or give the owner the edits to make by hand.
 - **Pending changes:** every edit not yet in the Doc is a row in `PENDING.md` with its ops file. `node tools/prd-sync/build_pending.cjs` bundles them all into `apply_pending.gs`, the one script the owner runs (`checkAll`, then `runAll`).

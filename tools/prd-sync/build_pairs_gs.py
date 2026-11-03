@@ -12,10 +12,10 @@ import pathlib
 import sys
 
 IDS = {
-    "PRD": "1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY",
-    "מסמך 02": "1r74zTVq-C1Xa8WrYwOdUMvlhd3OEVty4o2K207rJhgI",
-    "מסמך 03": "1deVf-QeccnmA37jb5lkFHh-6Df1NMYGSFrWQL29gK4A",
-    "מסמך 04": "1d_pYxI_h9K-pY4VYy2cwJagxuYSRP-9-ovML40iSoeM",
+    "PRD": "1m93koO0eidytMr2VcfXLUTsGMuYj2pT3l3qD8ObXjm4",
+    "מסמך 02": "1uRIimZUZxEFmkNcI0f8TRjlH3N6cdOMZNR0vIXb7XmY",
+    "מסמך 03": "1Ueg88U7rWwvfMZ7ZTiyJSQ0Uyjz8JZ63dimcxvpuNys",
+    "מסמך 04": "18ZKge-9nAGSA31M77ptraSJN_dk-GV4vNNMKe3sFnIw",
 }
 
 version, header, *paths = sys.argv[1:]
